@@ -11,7 +11,7 @@
 <body>
   <header>
     <h1>Royal Society vs Science Museum — Data Comparison Dashboard</h1>
-    <p>Explore information richness and entity differences between datasets.</p>
+    <p>Explore information richness and dataset differences for each individual.</p>
   </header>
 
   <section id="controls">
@@ -27,8 +27,20 @@
   </section>
 
   <section id="detail-section" class="hidden">
-    <h2>Detailed Comparison</h2>
+    <h2 id="detailTitle">Detailed Comparison</h2>
     <canvas id="detailChart"></canvas>
+
+    <div id="entryTexts" class="entry-texts">
+      <div class="col">
+        <h3>Royal Society Dataset Entry</h3>
+        <p id="royalText"></p>
+      </div>
+      <div class="col">
+        <h3>Science Museum Dataset Entry</h3>
+        <p id="museumText"></p>
+      </div>
+    </div>
+
     <div class="differences">
       <div class="col">
         <h3>Unique to Royal Society</h3>
@@ -42,7 +54,7 @@
   </section>
 
   <footer>
-    <p>built on the third-floor</p>
+    <p>build on the third-floor</p>
   </footer>
 
   <script src="script.js"></script>
