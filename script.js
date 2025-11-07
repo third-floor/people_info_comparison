@@ -1,34 +1,41 @@
-let dataset = [];
+let comparisonData = [];
+let peopleData = [];
 let currentStart = 0;
 const chartsPerPage = 8;
 let detailChart = null;
 
-// --- Auto-load the default Excel file on page load ---
+// Auto-load both Excel files
 document.addEventListener("DOMContentLoaded", async () => {
   try {
-    const resp = await fetch("entity_comparison_results.xlsx");
-    const arrayBuffer = await resp.arrayBuffer();
-    const workbook = XLSX.read(arrayBuffer);
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    dataset = XLSX.utils.sheet_to_json(sheet);
-    renderGrid();
+    const compResp = await fetch("entity_comparison_results.xlsx");
+    const compArray = await compResp.arrayBuffer();
+    const compBook = XLSX.read(compArray);
+    const compSheet = compBook.Sheets[compBook.SheetNames[0]];
+    comparisonData = XLSX.utils.sheet_to_json(compSheet);
+
+    const peopleResp = await fetch("CO_CP_PEOPLE_ENTRIES_MATCHED_TO_RS_PAST_FELLOWS.xlsx");
+    const peopleArray = await peopleResp.arrayBuffer();
+    const peopleBook = XLSX.read(peopleArray);
+    const peopleSheet = peopleBook.Sheets[peopleBook.SheetNames[0]];
+    peopleData = XLSX.utils.sheet_to_json(peopleSheet);
+
+    mergeAndRender();
   } catch (err) {
-    console.warn("⚠️ Could not auto-load Excel file:", err);
+    console.warn("⚠️ Could not auto-load one or both Excel files:", err);
   }
 });
 
-// --- Allow manual upload override ---
 document.getElementById("fileInput").addEventListener("change", async (e) => {
   const file = e.target.files[0];
   const data = await file.arrayBuffer();
   const workbook = XLSX.read(data);
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  dataset = XLSX.utils.sheet_to_json(sheet);
+  comparisonData = XLSX.utils.sheet_to_json(sheet);
   currentStart = 0;
-  renderGrid();
+  mergeAndRender();
 });
 
-// --- Pagination controls ---
+// Pagination
 document.getElementById("prevBtn").onclick = () => {
   if (currentStart - chartsPerPage >= 0) {
     currentStart -= chartsPerPage;
@@ -36,21 +43,40 @@ document.getElementById("prevBtn").onclick = () => {
   }
 };
 document.getElementById("nextBtn").onclick = () => {
-  if (currentStart + chartsPerPage < dataset.length) {
+  if (currentStart + chartsPerPage < comparisonData.length) {
     currentStart += chartsPerPage;
     renderGrid();
   }
 };
 
-// --- GRID RENDERING ---
+// Merge based on RowIndex
+function mergeAndRender() {
+  if (!comparisonData.length || !peopleData.length) return;
+
+  comparisonData = comparisonData.map((row) => {
+    const idx = row.RowIndex;
+    const personRow = peopleData[idx] || {};
+    return { ...row, ...personRow };
+  });
+
+  renderGrid();
+}
+
+// Render grid
 function renderGrid() {
   const grid = document.getElementById("chartGrid");
   grid.innerHTML = "";
 
-  const slice = dataset.slice(currentStart, currentStart + chartsPerPage);
+  const slice = comparisonData.slice(currentStart, currentStart + chartsPerPage);
+
   slice.forEach((entry, i) => {
     const container = document.createElement("div");
     container.className = "chart-container";
+
+    const nameDiv = document.createElement("div");
+    nameDiv.className = "chart-name";
+    nameDiv.innerText = entry["Input name"] || `Entry #${entry.RowIndex}`;
+    container.appendChild(nameDiv);
 
     const canvas = document.createElement("canvas");
     container.appendChild(canvas);
@@ -61,11 +87,11 @@ function renderGrid() {
     container.appendChild(scoreDiv);
 
     grid.appendChild(container);
-    createMiniChart(canvas, entry, currentStart + i);
+    createMiniChart(canvas, entry);
   });
 }
 
-function createMiniChart(canvas, entry, index) {
+function createMiniChart(canvas, entry) {
   const labels = ["Persons", "Organisations", "Places", "Dates", "Events", "Other"];
   const royalData = [
     entry.Royal_Persons, entry.Royal_Orgs, entry.Royal_Places,
@@ -102,22 +128,21 @@ function createMiniChart(canvas, entry, index) {
     options: {
       responsive: true,
       plugins: { legend: { display: false } },
-      scales: {
-        r: { ticks: { display: false }, grid: { color: "#eee" } },
-      },
+      scales: { r: { ticks: { display: false }, grid: { color: "#eee" } } },
     },
   });
 
-  // Click handler for detailed view
-  canvas.addEventListener("click", () => showDetail(entry, index));
+  canvas.addEventListener("click", () => showDetail(entry));
 }
 
-// --- DETAIL VIEW ---
-function showDetail(entry, index) {
+// Show detailed view
+function showDetail(entry) {
   document.getElementById("detail-section").classList.remove("hidden");
 
   const ctx = document.getElementById("detailChart");
   if (detailChart) detailChart.destroy();
+
+  document.getElementById("detailTitle").innerText = `Detailed Comparison — ${entry["Input name"] || "Unknown"}`;
 
   const labels = ["Persons", "Organisations", "Places", "Dates", "Events", "Other"];
   const royalData = [
@@ -153,16 +178,21 @@ function showDetail(entry, index) {
     options: {
       responsive: true,
       plugins: { legend: { position: "bottom" } },
-      scales: {
-        r: {
-          beginAtZero: true,
-          suggestedMax: Math.max(...royalData.concat(museumData)) + 2,
-        },
-      },
+      scales: { r: { beginAtZero: true, suggestedMax: Math.max(...royalData.concat(museumData)) + 2 } },
     },
   });
 
-  // --- Unique entity display ---
+  // Populate dataset text
+  const royalCols = Object.keys(entry).filter(c => c.startsWith("Input") || ["Activity", "OtherInfo"].includes(c));
+  const museumCols = Object.keys(entry).filter(c => c.startsWith("Matched") || ["brief bio", "description"].includes(c));
+
+  const royalText = royalCols.map(c => entry[c]).filter(Boolean).join("\n\n");
+  const museumText = museumCols.map(c => entry[c]).filter(Boolean).join("\n\n");
+
+  document.getElementById("royalText").innerText = royalText || "No text available.";
+  document.getElementById("museumText").innerText = museumText || "No text available.";
+
+  // Unique entities
   const royalList = document.getElementById("royalList");
   const museumList = document.getElementById("museumList");
 
@@ -172,9 +202,7 @@ function showDetail(entry, index) {
   const formatList = (obj) =>
     Object.entries(obj)
       .map(([key, vals]) =>
-        vals && vals.length
-          ? `<li><b>${key}:</b> ${vals.slice(0, 8).join(", ")}</li>`
-          : ""
+        vals && vals.length ? `<li><b>${key}:</b> ${vals.slice(0, 8).join(", ")}</li>` : ""
       )
       .join("") || "<li><i>No unique entities</i></li>";
 
