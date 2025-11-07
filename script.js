@@ -3,7 +3,7 @@ let currentStart = 0;
 const chartsPerPage = 8;
 let detailChart = null;
 
-// Load default file automatically
+// --- Auto-load the default Excel file on page load ---
 document.addEventListener("DOMContentLoaded", async () => {
   try {
     const resp = await fetch("entity_comparison_results.xlsx");
@@ -17,7 +17,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 });
 
-// Allow manual upload override
+// --- Allow manual upload override ---
 document.getElementById("fileInput").addEventListener("change", async (e) => {
   const file = e.target.files[0];
   const data = await file.arrayBuffer();
@@ -28,7 +28,7 @@ document.getElementById("fileInput").addEventListener("change", async (e) => {
   renderGrid();
 });
 
-// Navigation buttons
+// --- Pagination controls ---
 document.getElementById("prevBtn").onclick = () => {
   if (currentStart - chartsPerPage >= 0) {
     currentStart -= chartsPerPage;
@@ -42,15 +42,25 @@ document.getElementById("nextBtn").onclick = () => {
   }
 };
 
+// --- GRID RENDERING ---
 function renderGrid() {
   const grid = document.getElementById("chartGrid");
   grid.innerHTML = "";
 
   const slice = dataset.slice(currentStart, currentStart + chartsPerPage);
-
   slice.forEach((entry, i) => {
+    const container = document.createElement("div");
+    container.className = "chart-container";
+
     const canvas = document.createElement("canvas");
-    grid.appendChild(canvas);
+    container.appendChild(canvas);
+
+    const scoreDiv = document.createElement("div");
+    scoreDiv.className = "score";
+    scoreDiv.innerText = `Royal: ${entry.Royal_Total} | Museum: ${entry.Museum_Total}`;
+    container.appendChild(scoreDiv);
+
+    grid.appendChild(container);
     createMiniChart(canvas, entry, currentStart + i);
   });
 }
@@ -93,7 +103,7 @@ function createMiniChart(canvas, entry, index) {
       responsive: true,
       plugins: { legend: { display: false } },
       scales: {
-        r: { ticks: { display: false }, grid: { color: "#ddd" } },
+        r: { ticks: { display: false }, grid: { color: "#eee" } },
       },
     },
   });
@@ -102,6 +112,7 @@ function createMiniChart(canvas, entry, index) {
   canvas.addEventListener("click", () => showDetail(entry, index));
 }
 
+// --- DETAIL VIEW ---
 function showDetail(entry, index) {
   document.getElementById("detail-section").classList.remove("hidden");
 
@@ -151,7 +162,7 @@ function showDetail(entry, index) {
     },
   });
 
-  // Display unique entities
+  // --- Unique entity display ---
   const royalList = document.getElementById("royalList");
   const museumList = document.getElementById("museumList");
 
