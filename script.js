@@ -75,7 +75,7 @@ function renderGrid() {
 
     const nameDiv = document.createElement("div");
     nameDiv.className = "chart-name";
-    nameDiv.innerText = entry["Input name"] || `Entry #${entry.RowIndex}`;
+    nameDiv.innerText = entry["MatchedName"] || entry["InputName"] || `Entry #${entry.RowIndex}`;
     container.appendChild(nameDiv);
 
     const canvas = document.createElement("canvas");
@@ -142,7 +142,7 @@ function showDetail(entry) {
   const ctx = document.getElementById("detailChart");
   if (detailChart) detailChart.destroy();
 
-  document.getElementById("detailTitle").innerText = `Detailed Comparison — ${entry["Input name"] || "Unknown"}`;
+  document.getElementById("detailTitle").innerText = `Detailed Comparison — ${entry["MatchedName"] || entry["InputName"] || "Unknown"}`;
 
   const labels = ["Persons", "Organisations", "Places", "Dates", "Events", "Other"];
   const royalData = [
